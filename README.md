@@ -10,6 +10,9 @@ HLSL intellisense in Visual Studio.
 HlslParser is currently capable of parsing most / all of the sample shaders in the Direct3D SDK,
 as well as several other shaders - see the [test suite](src/HlslParser.Tests/Shaders).
 
+(On a nerd note, Nitra makes it possible to define the grammar in a nice concise way; so far, I prefer it to
+other parser generators that I've used. [Here is the HLSL grammar file](src/HlslParser/HlslGrammar.nitra).)
+
 Usage
 -----
 
