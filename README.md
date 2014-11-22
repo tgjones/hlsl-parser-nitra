@@ -1,7 +1,8 @@
 HlslParser
 ==========
 
-HlslParser is a .NET parser for SM5.0 HLSL code. It is based on JetBrains' Nitra project.
+HlslParser is a SM5.0 HLSL parser for .NET. The grammar and parser are built using JetBrains'
+[Nitra](https://github.com/JetBrains/Nitra) project.
 Currently, it only parses HLSL code into an AST. Once Nitra adds support for it
 (planned for a future milestone), I plan to extend HlslParser to support full 
 HLSL intellisense in Visual Studio.
