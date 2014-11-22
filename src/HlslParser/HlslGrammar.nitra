@@ -1,0 +1,418 @@
+﻿namespace HlslParser
+{
+  syntax module HlslGrammar
+  {
+    using CStyleComments;
+    using Identifiers;
+    using Outline;
+    using PrettyPrint;
+    using StandardSpanClasses;
+    using TokenNames;
+    using Whitespaces;
+
+    [StartRule]
+    syntax CompilationUnit = TopLevelDeclaration* !Any;
+
+    [Identifier]
+    token Identifier = !Keyword IdentifierBody;
+
+    alias Name = Identifier;
+
+    // --------------------------------------
+    // TOP-LEVEL DECLARATIONS
+    // --------------------------------------
+
+    syntax TopLevelDeclaration
+    {
+      | Class                  = "class" sm Name sm ":" sm Interface=Name inl "{" ClassMemberDeclaration* d "}" ";";
+      | ClassMethodDefinition  = FunctionType sm ClassName=Name "::" Name "(" FunctionParams? ")" Block;
+      | CBuffer                = "cbuffer" sm Name RegisterAllocation? nl "{" inl (VariableDeclaration ";" nl)+ d "}" ";"? nl;
+      | FunctionDefinition     = Attribute* FunctionType sm Name "(" FunctionParams? ")" (sm ":" sm Semantic=Identifier)? Block;
+      | FunctionDeclaration    = Attribute* FunctionType sm Name "(" FunctionParams? ")" (sm ":" sm Semantic=Identifier)? ";";
+      | GeometryShader         = Attribute* "void" sm Name "(" GeometryShaderPrimitiveType sm PrimitiveType=Type InputName=Name "[" NumElements=IntegerLiteral "]" "," sm "inout" StreamOutputObject ")" Block;
+      | Interface              = "interface" sm Name inl "{" InterfaceMethodDeclaration* d "}" ";";
+      | SamplerState           = "SamplerState" sm Name RegisterAllocation? SamplerStateBody? ";" nl;
+      | SamplerComparisonState = "SamplerComparisonState" sm Name RegisterAllocation? SamplerComparisonStateBody? ";" nl;
+      | Struct                 = "struct" sm Name nl "{" inl (VariableDeclaration ";" nl)+ d "}" ";" nl;
+      | Variable               = VariableDeclaration ";" nl;
+    }
+
+    syntax ClassMemberDeclaration
+    {
+      | Field             = Type sm Name ";";
+      | MethodDeclaration = Type sm Name "(" FunctionParams? ")" Block;
+      | MethodDefinition  = Type sm Name "(" FunctionParams? ")" ";";
+    }
+
+    syntax InterfaceMethodDeclaration = Type sm Name "(" FunctionParams? ")" ";";
+
+    syntax FunctionType
+    {
+      | Type;
+      | Void = "void";
+    }
+
+    regex GeometryShaderPrimitiveType = "point" | "line" | "triangle" | "lineadj" | "triangleadj";
+    
+    syntax StreamOutputObject = StreamOutputObjectType "<" Type ">" sm Name;
+    regex StreamOutputObjectType = "PointStream" | "LineStream" | "TriangleStream";
+
+    syntax SamplerStateBody = nl "{" inl SamplerStateProperty* d "}";
+    syntax SamplerStateProperty = SamplerStatePropertyName sm "=" sm Identifier ";" nl;
+
+    syntax SamplerComparisonStateBody = nl "{" inl SamplerComparisonStateProperty* d "}";
+    syntax SamplerComparisonStateProperty = SamplerComparisonStatePropertyName sm "=" sm Identifier ";" nl;
+
+    syntax RegisterAllocation = ":" sm "register" sm "(" RegisterAddress ")";
+
+    [ExplicitSpaces]
+    syntax RegisterAddress = RegisterType RegisterNumber=IntegerLiteral ("[" Subcomponent=IntegerLiteral "]")?;
+
+    regex RegisterType = ['b', 't', 'c', 's', 'u'];
+
+    syntax FunctionParams = FunctionParam ("," sm FunctionParam)*;
+    syntax FunctionParam  = Const? InOutInout? VariableDeclaration;
+    regex InOutInout = "in" | "out" | "inout" | "in out";
+    regex Const = "const";
+
+    [ExplicitSpaces]
+    syntax PackOffsetAddress = "c" Subcomponent=IntegerLiteral (s "." s Component=Identifier)?;
+
+    syntax VariableDeclaration = StorageClasses TypeModifiers Type sm Name
+      ("[" Size=Expression "]")*
+      (sm ":" sm "packoffset" "(" PackOffsetAddress ")")?
+      RegisterAllocation?
+      (sm ":" sm Semantic=Identifier)?
+      (sm "=" sm VariableInitializer)?;
+
+    syntax StorageClasses = StorageClass*;
+
+    syntax StorageClass
+    {
+      | Extern          = "extern";
+      | NoInterpolation = "nointerpolation";
+      | Precise         = "precise";
+      | Shared          = "shared";
+      | GroupShared     = "groupshared";
+      | Static          = "static";
+      | Uniform         = "uniform";
+      | Volatile        = "volatile";
+    }
+
+    syntax TypeModifiers = TypeModifier*;
+
+    syntax TypeModifier
+    {
+      | Const       = "const";
+      | RowMajor    = "row_major";
+      | ColumnMajor = "column_major";
+    }
+
+    syntax VariableDeclarators = (VariableDeclarator; "," sm)+;
+    syntax VariableDeclarator = Name VariableDeclarationArraySize? (sm "=" sm VariableInitializer)?;
+
+    syntax VariableDeclarationArraySize = "[" Size=Expression? "]";
+
+    syntax VariableInitializer
+    {
+      | Array = "{" sm (VariableInitializer; "," sm; ?)* sm "}";
+      | Expression;
+    }
+
+    // --------------------------------------
+    // STATEMENTS
+    // --------------------------------------
+
+    syntax Block = nl "{" inl Statement* d "}" nl;
+
+    syntax IndentedEmbeddedStatement
+    {
+      | Statement = !"{" (inl EmbeddedStatement d); // not a block statement
+      | Block     = &"{" Stmt=Block;
+    }
+
+    syntax LocalVariableDeclaration = StorageClasses TypeModifiers Type sm VariableDeclarators;
+
+    syntax Statement
+    {
+      | LocalVariable = LocalVariableDeclaration ";" nl;
+      | EmbeddedStatement;
+    }
+
+    syntax ForInitializer
+    {
+      | Var  = LocalVariableDeclaration;
+      | List = (Expression; "," sm)+;
+    }
+
+    syntax SwitchLabel
+    {
+      | Case    = "case" sm Expression ":" nl;
+      | Default = "default" ":" nl;
+    }
+
+    syntax SwitchSection = SwitchLabel+ i Statement+ d;
+
+    syntax EmbeddedStatement
+    {
+      | Empty = ";" nl;
+      | Block;
+      | ExpressionStatement = Expression ";" nl;
+
+      // Selection statement
+      | If     = Attribute? "if" sm "(" Condition=Expression ")" IndentedEmbeddedStatement ("else" IndentedEmbeddedStatement)?;
+      | Switch = Attribute? "switch" sm "(" Expression ")" nl "{" inl SwitchSection* d "}" nl;
+
+      // Iteration statement
+      | While  = Attribute? "while" sm "(" Condition=Expression ")" IndentedEmbeddedStatement;
+      | Do     = Attribute? "do" nl IndentedEmbeddedStatement "while" sm "(" Condition=Expression ")" ";" nl;
+      | For    = Attribute? "for" sm "(" ForInitializer? ";" sm Condition=Expression ";" sm Iterator=(Expression; "," sm)* ")" IndentedEmbeddedStatement;
+
+      // Jump statement
+      | Break      = "break" ";" nl;
+      | Continue   = "continue" ";" nl;
+      | Discard    = "discard" ";" nl;
+      | Return     = "return" sm Expression ";" nl;
+      | ReturnVoid = "return" ";" nl;
+    }
+
+    // --------------------------------------
+    // EXPRESSIONS
+    // --------------------------------------
+
+    syntax Expression
+    {
+      // Literals
+      | Literal;
+
+      | Identifier;
+      | Parenthesized = "(" Expression ")";
+      | Cast;
+
+      // Primary
+      | MemberAccess = Expression ^ 150 "." Name;
+      | FunctionCall = Expression ^ 150 "(" ArgumentList ")";
+      | ArrayAccess  = Expression ^ 150 "[" Expression "]";
+      | PostIncrement = Expression "++" precedence 150;
+      | PostDecrement = Expression "--" precedence 150;
+
+      // Unary
+      | Identity             = "+" Expression precedence 140;
+      | Negation             = "-" Expression precedence 140;
+      | LogicalNegation      = "!" Expression precedence 140;
+      | BitwiseNegation      = "~" Expression precedence 140;
+      | PreIncrement         = "++" Expression precedence 140;
+      | PreDecrement         = "--" Expression precedence 140;
+
+      // Multiplicative
+      | Mul                  = Expression sm "*" sm Expression precedence 130;
+      | Div                  = Expression sm "/" sm Expression precedence 130;
+      | Mod                  = Expression sm "%" sm Expression precedence 130;
+
+      // Additive
+      | Add                  = Expression sm "+" sm Expression precedence 120;
+      | Sub                  = Expression sm "-" sm Expression precedence 120;
+
+      // Shift
+      | ShiftLeft            = Expression sm "<<" sm Expression precedence 110;
+      | ShiftRight           = Expression sm ">>" sm Expression precedence 110;
+
+      // Relational testing
+      | LessThan             = Expression sm "<" sm Expression precedence 100;
+      | GreaterThan          = Expression sm ">" sm Expression precedence 100;
+      | LessThanOrEqual      = Expression sm "<=" sm Expression precedence 100;
+      | GreaterThanOrEqual   = Expression sm ">=" sm Expression precedence 100;
+
+      // Equality
+      | Equal                = Expression sm "==" sm Expression precedence 90;
+      | NotEqual             = Expression sm "!=" sm Expression precedence 90;
+
+      // Logical AND
+      | LogicalAnd           = Expression sm "&" sm Expression precedence 80;
+
+      // Logical XOR
+      | LogicalXor           = Expression sm "^" sm Expression precedence 70;
+
+      // Logical OR
+      | LogicalOr            = Expression sm "|" sm Expression precedence 60;
+
+      // Conditional AND
+      | ConditionalAnd       = Expression sm "&&" sm Expression precedence 50;
+
+      // Conditional OR
+      | ConditionalOr        = Expression sm "||" sm Expression precedence 40;
+
+      // Conditional
+      | Conditional          = Expression ^ 21 sm "?" Expression sm ":" Expression;
+
+      // Assignment
+      | Assignment           = Expression sm "=" sm Expression precedence 10 right-associative;
+      | MulAssignment        = Expression sm "*=" sm Expression precedence 10 right-associative;
+      | DivAssignment        = Expression sm "/=" sm Expression precedence 10 right-associative;
+      | RemainderAssignment  = Expression sm "%=" sm Expression precedence 10 right-associative;
+      | AddAssignment        = Expression sm "+=" sm Expression precedence 10 right-associative;
+      | SubAssignment        = Expression sm "-=" sm Expression precedence 10 right-associative;
+      | ShiftLeftAssignment  = Expression sm "<<=" sm Expression precedence 10 right-associative;
+      | ShiftRightAssignment = Expression sm ">>=" sm Expression precedence 10 right-associative;
+      | AndAssignment        = Expression sm "&=" sm Expression precedence 10 right-associative;
+      | XorAssignment        = Expression sm "^=" sm Expression precedence 10 right-associative;
+      | OrAssignment         = Expression sm "|=" sm Expression precedence 10 right-associative;
+    }
+
+    syntax Cast
+    {
+      | PrefixCast      = "(" Type ArraySize=("[" IntegerLiteral "]")? ")" sm Expression;
+      | ConstructorCast = Type "(" Expression ")";
+    }
+
+    syntax ArgumentList = (Expression; "," sm)*;
+
+    // --------------------------------------
+    // GLOBAL STUFF
+    // --------------------------------------
+
+    extend token IgnoreToken
+    {
+      | [SpanClass(Comment), ExplicitSpaces] SingleLineComment;
+      | [SpanClass(Comment), ExplicitSpaces] MultiLineComment;
+
+      // TODO: If we had a proper preprocessor, we wouldn't need this.
+      | [SpanClass(Comment), ExplicitSpaces] Preprocessor = Start="#" Body=(!NewLineCharacter Any)* End=NewLine?;
+    }
+
+    // --------------------------------------
+    // TYPES
+    // --------------------------------------
+
+    syntax PredefinedType
+    {
+      | BufferTypeGeneric = BufferType "<" ScalarOrVectorType ">";
+      | ByteAddressBufferType;
+      | InlineStruct = "struct" sm "{" sm (VariableDeclaration ";" nl)+ sm "}";
+      | InputPatch = "InputPatch" "<" Identifier "," sm IntegerLiteral ">";
+      | MatrixTypeBasic = "matrix";
+      | MatrixType;
+      | MatrixTypeGeneric = "matrix" "<" ScalarType "," sm TypeDimension "," sm TypeDimension ">";
+      | OutputPatch = "OutputPatch" "<" Identifier "," sm IntegerLiteral ">";
+      | SamplerType = "sampler";
+      | ScalarType;
+      | StructuredBufferType = StructuredBufferName "<" ScalarOrVectorOrUserDefinedType ">";
+      | TextureTypeLegacy = "texture";
+      | TextureType;
+      | TextureTypeGeneric = TextureType "<" ScalarOrVectorType ">";
+      | TextureTypeMS = TextureTypeMS "<" ScalarOrVectorType "," sm TextureTypeMSSamples ">";
+      | VectorType;
+      | VectorTypeGeneric = "vector" "<" ScalarType "," sm TypeDimension ">";
+    }
+
+    syntax Type
+    {
+       | PredefinedType
+       | UserDefinedType;
+    }
+
+    regex BufferType = "Buffer" | "RWBuffer";
+    regex ByteAddressBufferType = "ByteAddressBuffer" | "RWByteAddressBuffer";
+
+    regex StructuredBufferName = "AppendStructuredBuffer" | "ConsumeStructuredBuffer" | "RWStructuredBuffer" | "StructuredBuffer";
+
+    syntax ScalarOrVectorType
+    {
+       | ScalarType;
+       | VectorType;
+    }
+
+    syntax ScalarOrVectorOrUserDefinedType
+    {
+       | ScalarType;
+       | VectorType;
+       | UserDefinedType;
+    }
+
+    syntax UserDefinedType = !PredefinedType Identifier;
+
+    regex SamplerStatePropertyName = "AddressU" | "AddressV" | "AddressW" | "BorderColor" | "Filter" | "MaxAnisotropy" | "MaxLOD" | "MinLOD" | "MipLODBias";
+    regex SamplerComparisonStatePropertyName = SamplerStatePropertyName | "ComparisonFunc";
+
+    regex ScalarType    = "bool" | "int" | "uint" | "dword" | "half" | "float" | "double" | "unsigned int";
+    regex VectorType    = ScalarType ['1'..'4'];
+    regex MatrixType    = ScalarType ['1'..'4'] "x" ['1'..'4'];
+    regex TypeDimension = ['1'..'4'];
+    regex TextureType   = "Texture1D" | "Texture1DArray" | "Texture2D" | "Texture2DArray" | "Texture3D" | "TextureCube" | "TextureCubeArray";
+    regex TextureTypeMS = "Texture2DMS" | "Texture2DMSArray";
+    regex TextureTypeMSSamples = ['1'..'9'] (['0'..'9'] ['0'..'9']?)?;
+
+    // --------------------------------------
+    // KEYWORDS & IDENTIFIERS
+    // --------------------------------------
+
+    regex KeywordToken = 
+        "AppendStructuredBuffer" | "asm" | "asm_fragment"
+      | "BlendState" | "bool" | "break" | "Buffer" | "ByteAddressBuffer"
+      | "case" | "cbuffer" | "centroid" | "class" | "column_major" | "compile" | "compile_fragment" | "CompileShader " | "const" | "continue" | "ComputeShader" | "ConsumeStructuredBuffer"
+      | "default" | "DepthStencilState" | "DepthStencilView" | "discard" | "do" | "double" | "DomainShader" | "dword"
+      | "else" | "export" | "extern"
+      | "false" | "float" | "for" | "fxgroup"
+      | "GeometryShader" | "groupshared"
+      | "half" | "Hullshader"
+      | "if" | "in" | "inline" | "inout" | "InputPatch" | "int" | "interface"
+      | "line" | "lineadj" | "linear" | "LineStream"
+      | "matrix" | "min16float" | "min10float" | "min16int" | "min12int" | "min16uint"
+      | "namespace" | "nointerpolation" | "noperspective" | "NULL"
+      | "out" | "OutputPatch"
+      | "packoffset" | "pass" | "pixelfragment" | "PixelShader" | "point" | "PointStream" | "precise"
+      | "RasterizerState" | "RenderTargetView" | "return" | "register" | "row_major" | "RWBuffer" | "RWByteAddressBuffer" | "RWStructuredBuffer" | "RWTexture1D" | "RWTexture1DArray" | "RWTexture2D" | "RWTexture2DArray" | "RWTexture3D"
+      | "sample" | "sampler" | "SamplerState" | "SamplerComparisonState" | "shared" | "snorm" | "stateblock" | "stateblock_state" | "static" | "string" | "struct" | "switch" | "StructuredBuffer"
+      | "tbuffer" | "technique" | "technique10" | "technique11" | "texture" | "Texture1D" | "Texture1DArray" | "Texture2D" | "Texture2DArray" | "Texture2DMS" | "Texture2DMSArray" | "Texture3D" | "TextureCube" | "TextureCubeArray" | "true" | "typedef" | "triangle" | "triangleadj" | "TriangleStream"
+      | "uint" | "uniform" | "unorm" | "unsigned"
+      | "vector" | "vertexfragment" | "VertexShader" | "void" | "volatile"
+      | "while";
+
+    [Keyword]
+    token Keyword = Name=KeywordToken !IdentifierPartCharacters;
+
+    // --------------------------------------
+    // LITERALS
+    // --------------------------------------
+
+    syntax Literal
+    {
+      | BooleanLiteral;
+      | FloatLiteral;
+      | IntegerLiteral;
+      | StringLiteral;
+    }
+
+    regex BooleanLiteral = "true" | "false";
+
+    regex DecimalDigit = ['0'..'9'];
+    regex HexDigit = ['0'..'9', 'a'..'f', 'A'..'F'];
+    regex DecimalIntegerLiteral = DecimalDigit+;
+    regex HexadecimalIntegerLiteral = ("0x" | "0X") HexDigit+;
+
+    [SpanClass(Number)]
+    regex IntegerLiteral = HexadecimalIntegerLiteral | DecimalIntegerLiteral;
+
+    regex FloatSuffix  = "f";
+    regex ExponentPart = "e" ("-" | "+")? DecimalDigit+;
+
+    regex FloatLiteral1 = DecimalDigit* "." DecimalDigit+ ExponentPart? FloatSuffix?;
+    regex FloatLiteral2 = DecimalDigit+ ExponentPart FloatSuffix?;
+    regex FloatLiteral3 = DecimalDigit+ FloatSuffix;
+
+    [SpanClass(Number)]
+    regex FloatLiteral = FloatLiteral1 | FloatLiteral2 | FloatLiteral3;
+
+    regex NotAllowedRegularStringLiteralChar = NewLineCharacter | "\"" | "\\";
+
+    [SpanClass(String)]
+    token StringLiteral = "\"" (!NotAllowedRegularStringLiteralChar Any)* "\"";
+
+    // --------------------------------------
+    // ATTRIBUTES
+    // --------------------------------------
+
+    syntax AttributeArguments = "(" (Literal; "," sm)+ ")";
+    syntax Attribute = "[" Name AttributeArguments? "]" nl;
+  }
+}

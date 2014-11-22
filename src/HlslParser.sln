@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.31101.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{EDCC3B85-0BAD-11DB-BC1A-00112FDE8B61}") = "HlslParser", "HlslParser\HlslParser.nproj", "{8E98D01E-2E3F-4503-A338-40CB79CE39C6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HlslParser.Tests", "HlslParser.Tests\HlslParser.Tests.csproj", "{B77DF2B3-9940-4CE5-BC00-9CE4AEDF909D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8E98D01E-2E3F-4503-A338-40CB79CE39C6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8E98D01E-2E3F-4503-A338-40CB79CE39C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8E98D01E-2E3F-4503-A338-40CB79CE39C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8E98D01E-2E3F-4503-A338-40CB79CE39C6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B77DF2B3-9940-4CE5-BC00-9CE4AEDF909D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B77DF2B3-9940-4CE5-BC00-9CE4AEDF909D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B77DF2B3-9940-4CE5-BC00-9CE4AEDF909D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B77DF2B3-9940-4CE5-BC00-9CE4AEDF909D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
