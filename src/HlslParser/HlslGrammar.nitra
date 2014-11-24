@@ -27,7 +27,7 @@
       | Class                  = "class" sm Name sm ":" sm Interface=Name inl "{" ClassMemberDeclaration* d "}" ";";
       | ClassMethodDefinition  = FunctionType sm ClassName=Name "::" Name "(" FunctionParams? ")" Block;
       | CBuffer                = "cbuffer" sm Name RegisterAllocation? nl "{" inl (VariableDeclaration ";" nl)+ d "}" ";"? nl;
-      | FunctionDefinition     = Attribute* FunctionType sm Name "(" FunctionParams? ")" (sm ":" sm Semantic=Identifier)? Block;
+      | FunctionDefinition     = Attribute* FunctionType sm Name "(" FunctionParams? ")" (sm ":" sm Semantic=Identifier)? outline_begin_before Block outline_end_before;
       | FunctionDeclaration    = Attribute* FunctionType sm Name "(" FunctionParams? ")" (sm ":" sm Semantic=Identifier)? ";";
       | GeometryShader         = Attribute* "void" sm Name "(" GeometryShaderPrimitiveType sm PrimitiveType=Type InputName=Name "[" NumElements=IntegerLiteral "]" "," sm "inout" StreamOutputObject ")" Block;
       | Interface              = "interface" sm Name inl "{" InterfaceMethodDeclaration* d "}" ";";

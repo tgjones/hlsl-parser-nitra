@@ -36,6 +36,12 @@ build HlslParser on your own machine:
 1. [Nemerle](http://nemerle.org/Downloads)
 2. [Nitra](http://nemerle.org/nitra-builds/)
 
+I haven't built an HLSL preprocessor. Instead, I make use of the Direct3D HLSL preprocessor, through SharpDX.
+SharpDX requires a specific DirectX runtime, so if you want to run the
+HlslParser test suite, you'll need to install that too:
+
+* [DirectX June 2010 Redistributable Runtime](http://www.microsoft.com/en-us/download/details.aspx?id=8109)
+
 License
 -------
 
