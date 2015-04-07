@@ -2,9 +2,10 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
+using CppNet;
 using Nitra;
 using NUnit.Framework;
-using SharpDX.D3DCompiler;
 
 namespace HlslParser.Tests
 {
@@ -14,9 +15,8 @@ namespace HlslParser.Tests
         [TestCaseSource("GetTestShaders")]
         public void CanParseShader(string testFile, string knownGoodFile)
         {
-            // Preprocess test code using D3DCompiler.
-            var sourceCode = ShaderBytecode.Preprocess(File.ReadAllText(testFile), 
-                include: new FileSystemInclude(Path.GetDirectoryName(testFile)));
+            // Preprocess test code using CppNet.
+            var sourceCode = Preprocess(File.ReadAllText(testFile), testFile);
 
             // Parse test code.
             var sourceSnapshot = new SourceSnapshot(sourceCode);
@@ -51,6 +51,43 @@ namespace HlslParser.Tests
         {
             return Directory.GetFiles("Shaders", "*.hlsl", SearchOption.AllDirectories)
                 .Select(x => new TestCaseData(x, Path.ChangeExtension(x, ".knowngood")));
+        }
+
+        private static string Preprocess(string effectCode, string filePath)
+        {
+            var fullPath = Path.GetFullPath(filePath);
+
+            var pp = new Preprocessor();
+
+            pp.EmitExtraLineInfo = false;
+            pp.addFeature(Feature.LINEMARKERS);
+            pp.setQuoteIncludePath(new List<string> { Path.GetDirectoryName(fullPath) });
+
+            pp.addInput(new StringLexerSource(effectCode, true, fullPath));
+
+            var result = new StringBuilder();
+
+            var endOfStream = false;
+            while (!endOfStream)
+            {
+                var token = pp.token();
+                switch (token.getType())
+                {
+                    case Token.EOF:
+                        endOfStream = true;
+                        break;
+                    case Token.CCOMMENT:
+                    case Token.CPPCOMMENT:
+                        break;
+                    default:
+                        var tokenText = token.getText();
+                        if (tokenText != null)
+                            result.Append(tokenText);
+                        break;
+                }
+            }
+
+            return result.ToString();
         }
     }
 }
