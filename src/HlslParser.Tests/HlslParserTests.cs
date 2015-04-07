@@ -42,8 +42,8 @@ namespace HlslParser.Tests
             // (if known good version exists).
             if (File.Exists(knownGoodFile))
             {
-                var knownGoodCode = File.ReadAllText(knownGoodFile);
-                Assert.That(parsedCode, Is.EqualTo(knownGoodCode));
+                var knownGoodCode = File.ReadAllText(knownGoodFile).Replace("\r\n", "\n");
+                Assert.That(parsedCode.Replace("\r\n", "\n"), Is.EqualTo(knownGoodCode));
             }
         }
 
